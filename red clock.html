@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>番茄鬧鐘</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #ff6b6b, #ffa500);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            max-width: 400px;
+            width: 90%;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 30px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .timer-display {
+            font-size: 4em;
+            font-weight: bold;
+            margin: 30px 0;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+            font-family: 'Courier New', monospace;
+        }
+
+        .status {
+            font-size: 1.5em;
+            margin: 20px 0;
+            opacity: 0.9;
+        }
+
+        .buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin: 30px 0;
+        }
+
+        button {
+            padding: 12px 24px;
+            font-size: 1.1em;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
+            min-width: 100px;
+        }
+
+        .start-btn {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .start-btn:hover {
+            background: #45a049;
+            transform: translateY(-2px);
+        }
+
+        .pause-btn {
+            background: #ff9800;
+            color: white;
+        }
+
+        .pause-btn:hover {
+            background: #e68900;
+            transform: translateY(-2px);
+        }
+
+        .reset-btn {
+            background: #f44336;
+            color: white;
+        }
+
+        .reset-btn:hover {
+            background: #da190b;
+            transform: translateY(-2px);
+        }
+
+        .settings {
+            margin-top: 30px;
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .setting-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .setting-group label {
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+
+        .setting-group input {
+            width: 80px;
+            padding: 8px;
+            border: none;
+            border-radius: 10px;
+            text-align: center;
+            font-size: 1em;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .setting-group input::placeholder {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .cycles {
+            margin-top: 20px;
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #4CAF50;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 10px;
+            font-weight: bold;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 1000;
+        }
+
+        .notification.show {
+            opacity: 1;
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 20px;
+            }
+            
+            h1 {
+                font-size: 2em;
+            }
+            
+            .timer-display {
+                font-size: 3em;
+            }
+            
+            .buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .settings {
+                flex-direction: column;
+                gap: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🍅 番茄鬧鐘</h1>
+        
+        <div class="timer-display" id="timer">25:00</div>
+        
+        <div class="status" id="status">準備開始工作</div>
+        
+        <div class="buttons">
+            <button class="start-btn" id="startBtn" onclick="startTimer()">開始</button>
+            <button class="pause-btn" id="pauseBtn" onclick="pauseTimer()">暫停</button>
+            <button class="reset-btn" id="resetBtn" onclick="resetTimer()">重置</button>
+        </div>
+        
+        <div class="settings">
+            <div class="setting-group">
+                <label>工作時間 (分鐘)</label>
+                <input type="number" id="workTime" value="25" min="1" max="60">
+            </div>
+            <div class="setting-group">
+                <label>休息時間 (分鐘)</label>
+                <input type="number" id="breakTime" value="5" min="1" max="30">
+            </div>
+        </div>
+        
+        <div class="cycles" id="cycles">完成週期: 0</div>
+    </div>
+    
+    <div class="notification" id="notification"></div>
+
+    <script>
+        let timer = null;
+        let timeLeft = 25 * 60; // 25分鐘轉換為秒
+        let isWorking = true; // true表示工作時間，false表示休息時間
+        let isRunning = false;
+        let completedCycles = 0;
+
+        // 更新顯示時間
+        function updateDisplay() {
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+            document.getElementById('timer').textContent = 
+                `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        // 更新狀態顯示
+        function updateStatus() {
+            const statusElement = document.getElementById('status');
+            if (isRunning) {
+                statusElement.textContent = isWorking ? '🔥 專注工作中...' : '☕ 休息時間';
+            } else {
+                statusElement.textContent = isWorking ? '準備開始工作' : '準備開始休息';
+            }
+        }
+
+        // 顯示通知
+        function showNotification(message) {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.classList.add('show');
+            
+            // 播放提示音（如果瀏覽器支援）
+            try {
+                const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmMcBjiR1/LNeSsFJHfH8N2QQAoUXrTp66hVFApGn+DyvmMcBjiR1/LNeSsFJHfH8N2QQAoUXrTp66hVFApGn+DyvmMcBjiR1/LNeSsFJHfH8N2QQAoUXrTp66hVFApGn+DyvmMcBQ==');
+                audio.play();
+            } catch (e) {
+                // 如果無法播放音效，忽略錯誤
+            }
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+
+        // 開始計時器
+        function startTimer() {
+            if (!isRunning) {
+                isRunning = true;
+                document.getElementById('startBtn').textContent = '進行中';
+                
+                timer = setInterval(() => {
+                    timeLeft--;
+                    updateDisplay();
+                    
+                    if (timeLeft <= 0) {
+                        // 時間到了
+                        clearInterval(timer);
+                        isRunning = false;
+                        
+                        if (isWorking) {
+                            // 工作時間結束，開始休息
+                            completedCycles++;
+                            document.getElementById('cycles').textContent = `完成週期: ${completedCycles}`;
+                            showNotification('🎉 工作時間結束！開始休息吧！');
+                            isWorking = false;
+                            timeLeft = parseInt(document.getElementById('breakTime').value) * 60;
+                        } else {
+                            // 休息時間結束，開始工作
+                            showNotification('⏰ 休息結束！準備開始新的工作週期！');
+                            isWorking = true;
+                            timeLeft = parseInt(document.getElementById('workTime').value) * 60;
+                        }
+                        
+                        updateDisplay();
+                        updateStatus();
+                        document.getElementById('startBtn').textContent = '開始';
+                    }
+                }, 1000);
+                
+                updateStatus();
+            }
+        }
+
+        // 暫停計時器
+        function pauseTimer() {
+            if (isRunning) {
+                clearInterval(timer);
+                isRunning = false;
+                document.getElementById('startBtn').textContent = '開始';
+                updateStatus();
+                showNotification('⏸️ 計時器已暫停');
+            }
+        }
+
+        // 重置計時器
+        function resetTimer() {
+            clearInterval(timer);
+            isRunning = false;
+            isWorking = true;
+            timeLeft = parseInt(document.getElementById('workTime').value) * 60;
+            document.getElementById('startBtn').textContent = '開始';
+            updateDisplay();
+            updateStatus();
+            showNotification('🔄 計時器已重置');
+        }
+
+        // 當工作時間或休息時間設定改變時，如果計時器沒在運行，就更新顯示
+        document.getElementById('workTime').addEventListener('change', function() {
+            if (!isRunning && isWorking) {
+                timeLeft = parseInt(this.value) * 60;
+                updateDisplay();
+            }
+        });
+
+        document.getElementById('breakTime').addEventListener('change', function() {
+            if (!isRunning && !isWorking) {
+                timeLeft = parseInt(this.value) * 60;
+                updateDisplay();
+            }
+        });
+
+        // 初始化顯示
+        updateDisplay();
+        updateStatus();
+    </script>
+</body>
+</html>
